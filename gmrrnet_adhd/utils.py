@@ -4,6 +4,90 @@ import scipy.io
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.metrics import accuracy_score, cohen_kappa_score, roc_auc_score, precision_score, recall_score
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
+
+def train_LOSO(model_, X, y, sbjs, model_args, compile_args, sbj_in, sbj_fin):
+    logo = LeaveOneGroupOut()
+    resultados = {}  # Diccionario para almacenar las métricas por sujeto
+    
+    i = 0    
+    for train_idx, test_idx in logo.split(X, y, groups=sbjs):
+        i += 1
+        if sbj_in <= i <= sbj_fin:
+            # Obtener el sujeto que se está utilizando como conjunto de prueba
+            sujeto_prueba = list(set(sbjs[j] for j in test_idx))[0]
+            
+            # Imprimir el sujeto que está siendo evaluado
+            print(f"Evaluando modelo para el sujeto #{i}: {sujeto_prueba}")
+        
+            # Dividir los datos en entrenamiento y prueba
+            X_train, X_test = np.array([X[j] for j in train_idx]), np.array([X[j] for j in test_idx])
+            y_train, y_test = np.array([y[j] for j in train_idx]), np.array([y[j] for j in test_idx])
+
+            # Crear el callback de early stopping
+            early_stopping = EarlyStopping(
+                monitor='val_loss',        
+                patience=10,               
+                min_delta=0.01,             
+                restore_best_weights=True  
+            )
+        
+            # Crear y compilar el modelo
+            model = model_(**model_args)
+            model.compile(loss = compile_args['loss'], 
+                          optimizer = Adam(compile_args['init_lr']),
+                          metrics = compile_args['metrics']
+                         )
+            
+            # Entrenar el modelo
+            model.fit(
+                X_train, y_train, 
+                epochs=30, 
+                validation_data=(X_test, y_test), 
+                verbose=0, 
+                batch_size=16,
+                callbacks=[early_stopping]
+            )
+            
+            # Predicciones
+            y_pred_probs = model.predict(X_test, verbose=0)
+            y_pred = np.argmax(y_pred_probs, axis=1) if y_pred_probs.shape[-1] > 1 else (y_pred_probs > 0.5).astype(int).flatten()
+            y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
+
+            # Calcular métricas
+            acc = accuracy_score(y_true, y_pred)
+            # kappa = cohen_kappa_score(y_true, y_pred)
+            # try:
+            #     auc = roc_auc_score(y_true, y_pred_probs[:,1]) if y_pred_probs.shape[-1] > 1 else roc_auc_score(y_true, y_pred_probs)
+            # except Exception as e:
+            #     print(f"No se pudo calcular AUC para sujeto {sujeto_prueba}: {e}")
+            #     auc = np.nan
+            # precision = precision_score(y_true, y_pred, zero_division=0)
+            # recall = recall_score(y_true, y_pred, zero_division=0)
+
+            # Guardar en el diccionario
+            resultados[sujeto_prueba] = {
+                'accuracy': acc,
+                # 'kappa': kappa,
+                # 'auc': auc,
+                # 'precision': precision,
+                # 'recall': recall
+            }
+            
+            print(f"Métricas para {sujeto_prueba}: {resultados[sujeto_prueba]}\n")
+    
+    if resultados:
+        # Mostrar resumen
+        print("Resumen de métricas por sujeto:")
+        for sujeto, metricas in resultados.items():
+            print(f"Sujeto {sujeto}: {metricas}")
+    else:
+        print("No se entrenó ningún modelo dentro del rango especificado.")
+    
+    return resultados  # <- Ahora devuelve el diccionario de resultados
+
 
 def segmentar_senales(db, labels):
     """
