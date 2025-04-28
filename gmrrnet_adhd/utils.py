@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, cohen_kappa_score, roc_auc_score, pr
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.optimizers import Adam
 
-def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds):
+def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_name=''):
     cv_scores = []
 
     for fold, (train_subjects, test_subjects) in enumerate(folds):
@@ -21,11 +21,20 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds):
         y_train, y_test = y[train_idx, :], y[test_idx, :]
 
         model = model_(**model_args)
-        model.compile(
+
+        if model_name == 'GMRRNet':
+            model.compile(
             loss=compile_args['loss'], 
             optimizer=Adam(compile_args['init_lr']),
-            metrics=compile_args['metrics']
-        )
+            metrics=compile_args['metrics'],
+            loss_weights=compile_args['loss_weights']
+            )
+        else:
+            model.compile(
+                loss=compile_args['loss'], 
+                optimizer=Adam(compile_args['init_lr']),
+                metrics=compile_args['metrics']
+            )
 
         early_stopping = EarlyStopping(
             monitor='val_loss', patience=10, min_delta=0.01, restore_best_weights=True
