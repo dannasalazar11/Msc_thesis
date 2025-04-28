@@ -8,6 +8,63 @@ from sklearn.metrics import accuracy_score, cohen_kappa_score, roc_auc_score, pr
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.optimizers import Adam
 
+def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds):
+    cv_scores = []
+
+    for fold, (train_subjects, test_subjects) in enumerate(folds):
+        print(f"Fold {fold+1}/{len(folds)}")
+
+        train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
+        test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
+
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx, :], y[test_idx, :]
+
+        model = model_(**model_args)
+        model.compile(
+            loss=compile_args['loss'], 
+            optimizer=Adam(compile_args['init_lr']),
+            metrics=compile_args['metrics']
+        )
+
+        early_stopping = EarlyStopping(
+            monitor='val_loss', patience=10, min_delta=0.01, restore_best_weights=True
+        )
+
+        model.fit(
+            X_train, y_train,
+            validation_data=(X_test, y_test),
+            epochs=30,
+            batch_size=16,
+            verbose=0,
+            callbacks=[early_stopping]
+        )
+
+        # Predicciones
+        y_pred_prob = model.predict(X_test)
+        y_pred = (y_pred_prob > 0.5).astype(int)
+
+        # Evaluaciones
+        acc = model.evaluate(X_test, y_test, verbose=0)[-1]
+        recall = recall_score(y_test, y_pred, average='macro')
+        precision = precision_score(y_test, y_pred, average='macro')
+        kappa = cohen_kappa_score(y_test.argmax(axis=1), y_pred.argmax(axis=1))
+        auc = roc_auc_score(y_test, y_pred_prob, multi_class='ovr', average='macro')
+
+        fold_metrics = {
+            'accuracy': acc,
+            'recall': recall,
+            'precision': precision,
+            'kappa': kappa,
+            'auc': auc
+        }
+
+        print(f"Fold metrics: {fold_metrics}")
+
+        cv_scores.append(fold_metrics)
+
+    return cv_scores
+
 def train_LOSO(model_, X, y, sbjs, model_args, compile_args, sbj_in, sbj_fin):
     logo = LeaveOneGroupOut()
     resultados = {}  # Diccionario para almacenar las métricas por sujeto
