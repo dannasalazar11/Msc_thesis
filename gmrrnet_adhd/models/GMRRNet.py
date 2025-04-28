@@ -5,8 +5,6 @@ from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
 from keras_nlp.layers import TransformerEncoder
 
-
-
 class GaussianKernelLayer(Layer):
     def __init__(self, **kwargs):
         super(GaussianKernelLayer, self).__init__(**kwargs)
