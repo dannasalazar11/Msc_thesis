@@ -50,8 +50,9 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
         )
 
         # Predicciones
-        y_pred_prob = model.predict(X_test)
-        y_pred = (y_pred_prob > 0.5).astype(int)
+        y_pred_probs = model.predict(X_test, verbose=0)
+        y_pred = np.argmax(y_pred_probs, axis=1) if y_pred_probs.shape[-1] > 1 else (y_pred_probs > 0.5).astype(int).flatten()
+        y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
 
         # Evaluaciones
         acc = model.evaluate(X_test, y_test, verbose=0)[-1]
@@ -102,11 +103,21 @@ def train_LOSO(model_, X, y, sbjs, model_args, compile_args, sbj_in, sbj_fin):
         
             # Crear y compilar el modelo
             model = model_(**model_args)
-            model.compile(loss = compile_args['loss'], 
-                          optimizer = Adam(compile_args['init_lr']),
-                          metrics = compile_args['metrics']
-                         )
-            
+
+            if model_name == 'GMRRNet':
+                model.compile(
+                loss=compile_args['loss'], 
+                optimizer=Adam(compile_args['init_lr']),
+                metrics=compile_args['metrics'],
+                loss_weights=compile_args['loss_weights']
+                )
+            else:
+                model.compile(
+                    loss=compile_args['loss'], 
+                    optimizer=Adam(compile_args['init_lr']),
+                    metrics=compile_args['metrics']
+                )
+                
             # Entrenar el modelo
             model.fit(
                 X_train, y_train, 
