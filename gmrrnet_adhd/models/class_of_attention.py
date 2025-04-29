@@ -47,7 +47,7 @@ def class_of_attention(input_shape=(19, 512),  # 512 time steps, 19 channels
 
     inputs = layers.Reshape((input_shape[1], input_shape[0]))(inputs)
 
-    x = PositionalEmbedding(sequence_length=input_shape[1], embed_dim=input_shape[1])(inputs)
+    x = PositionalEmbedding(sequence_length=input_shape[1], embed_dim=input_shape[0])(inputs)
     
     # Stack multiple transformer blocks
     for _ in range(num_blocks):
