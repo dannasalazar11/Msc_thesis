@@ -24,19 +24,12 @@ def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=
                 # Crear y compilar el modelo
                 model = model_(**model_args)
 
-                if model_name == 'GMRRNet':
-                    model.compile(
-                    loss=compile_args['loss'], 
-                    optimizer=Adam(compile_args['init_lr']),
-                    metrics=compile_args['metrics'],
-                    loss_weights=compile_args['loss_weights']
-                    )
-                else:
-                    model.compile(
-                        loss=compile_args['loss'], 
-                        optimizer=Adam(compile_args['init_lr']),
-                        metrics=compile_args['metrics']
-                    )
+                compile_args_local = deepcopy(compile_args)
+
+                if callable(compile_args_local['optimizer']):
+                    compile_args_local['optimizer'] = compile_args_local['optimizer']()
+
+                model.compile(**compile_args_local)
                     
                 # Entrenar el modelo
                 model.fit(
