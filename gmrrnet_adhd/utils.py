@@ -7,6 +7,8 @@ from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import accuracy_score, cohen_kappa_score, roc_auc_score, precision_score, recall_score
 from tensorflow.keras.callbacks import EarlyStopping
 from copy import deepcopy
+from sklearn.metrics import accuracy_score
+
 
 def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_name=''):
     cv_scores = []
@@ -52,7 +54,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
         y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
 
         # Evaluaciones
-        acc = model.evaluate(X_test, y_test, verbose=0)[-1]
+        acc = accuracy_score(y_true, y_pred)
         recall = recall_score(y_true, y_pred, average='macro')
         precision = precision_score(y_true, y_pred, average='macro')
         kappa = cohen_kappa_score(y_true, y_pred)
