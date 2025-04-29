@@ -35,7 +35,7 @@ def transformer_block(embed_dim, num_heads, ff_dim, dropout_rate=0.1):
 
     return models.Model(inputs=inputs, outputs=out2)
 
-def class_of_attention(input_shape=(385, 56),  # 385 time steps, 56 channels
+def class_of_attention(input_shape=(19, 512),  # 385 time steps, 56 channels
                           num_heads=6,
                           ff_dim=128,
                           num_blocks=6,
@@ -44,6 +44,9 @@ def class_of_attention(input_shape=(385, 56),  # 385 time steps, 56 channels
                           num_classes=2):
 
     inputs = layers.Input(shape=input_shape)
+
+    inputs = layers.Reshape((input_shape[1], input_shape[0]))(inputs)
+    
     x = PositionalEmbedding(sequence_length=input_shape[0], embed_dim=input_shape[1])(inputs)
     
     # Stack multiple transformer blocks
