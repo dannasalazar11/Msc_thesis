@@ -25,7 +25,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
         if model_name == 'GMRRNet':
             model.compile(
             loss=compile_args['loss'], 
-            optimizer=Adam(compile_args['init_lr']),
+            optimizer='adam',
             metrics=compile_args['metrics'],
             loss_weights=compile_args['loss_weights']
             )
