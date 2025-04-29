@@ -20,7 +20,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=
         test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
 
         X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx, :], y[test_idx, :]
+        y_train, y_test = y[train_idx], y[test_idx]
 
         model = model_(**model_args)
 
