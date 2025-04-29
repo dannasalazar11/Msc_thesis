@@ -35,7 +35,7 @@ def transformer_block(embed_dim, num_heads, ff_dim, dropout_rate=0.1):
 
     return models.Model(inputs=inputs, outputs=out2)
 
-def class_of_attention(input_shape=(19, 512),  # 385 time steps, 56 channels
+def class_of_attention(input_shape=(19, 512),  # 512 time steps, 19 channels
                           num_heads=6,
                           ff_dim=128,
                           num_blocks=6,
@@ -46,12 +46,12 @@ def class_of_attention(input_shape=(19, 512),  # 385 time steps, 56 channels
     inputs = layers.Input(shape=input_shape)
 
     inputs = layers.Reshape((input_shape[1], input_shape[0]))(inputs)
-    
-    x = PositionalEmbedding(sequence_length=input_shape[0], embed_dim=input_shape[1])(inputs)
+
+    x = PositionalEmbedding(sequence_length=input_shape[1], embed_dim=input_shape[1])(inputs)
     
     # Stack multiple transformer blocks
     for _ in range(num_blocks):
-        x = transformer_block(embed_dim=input_shape[1], num_heads=num_heads, ff_dim=ff_dim, dropout_rate=dropout_rate)(x)
+        x = transformer_block(embed_dim=input_shape[0], num_heads=num_heads, ff_dim=ff_dim, dropout_rate=dropout_rate)(x)
     
     x = layers.GlobalMaxPooling1D()(x)
     x = layers.Dropout(dropout_rate)(x)
