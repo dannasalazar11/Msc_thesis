@@ -22,18 +22,15 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
 
         model = model_(**model_args)
 
-        if model_name == 'GMRRNet':
-            model.compile(
-            loss=compile_args['loss'], 
-            optimizer='adam',
-            metrics=compile_args['metrics'],
-            loss_weights=compile_args['loss_weights']
-            )
-        else:
+        if model_name == 'EEGNet':
             model.compile(
                 loss=compile_args['loss'], 
                 optimizer=Adam(compile_args['init_lr']),
                 metrics=compile_args['metrics']
+            )
+        else:
+            model.compile(
+            **compile_args
             )
 
         early_stopping = EarlyStopping(
