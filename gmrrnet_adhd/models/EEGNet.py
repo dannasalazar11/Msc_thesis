@@ -75,7 +75,9 @@ def EEGNet(nb_classes, Chans = 64, Samples = 128,
         raise ValueError('dropoutType must be one of SpatialDropout2D '
                          'or Dropout, passed as a string.')
     
-    input1   = Input(shape = (Chans, Samples, 1))
+    input1   = Input(shape = (Chans, Samples))
+
+    input1 = Reshape((Chans, Samples, 1))(input1)
 
     ##################################################################
     block1       = Conv2D(F1, (1, kernLength), padding = 'same',
