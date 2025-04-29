@@ -6,6 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import accuracy_score, cohen_kappa_score, roc_auc_score, precision_score, recall_score
 from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
 
 def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_name=''):
     cv_scores = []
@@ -21,6 +22,8 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
 
         model = model_(**model_args)
 
+        if model_name == "GMRRNet":
+            compile_args['optimizer'] = Adam(1e-2)
         model.compile(
             **compile_args
             )
