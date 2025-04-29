@@ -10,7 +10,7 @@ from copy import deepcopy
 from sklearn.metrics import accuracy_score
 
 
-def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_name=''):
+def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=None, model_name=''):
     cv_scores = []
 
     for fold, (train_subjects, test_subjects) in enumerate(folds):
@@ -74,7 +74,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
 
     return cv_scores
 
-def train_LOSO(model_, X, y, sbjs, model_args, compile_args, sbj_in, sbj_fin):
+def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=None, sbj_fin=None):
     logo = LeaveOneGroupOut()
     resultados = {}  # Diccionario para almacenar las métricas por sujeto
     
@@ -99,36 +99,41 @@ def train_LOSO(model_, X, y, sbjs, model_args, compile_args, sbj_in, sbj_fin):
                 min_delta=0.01,             
                 restore_best_weights=True  
             )
-        
-            # Crear y compilar el modelo
-            model = model_(**model_args)
 
-            if model_name == 'GMRRNet':
-                model.compile(
-                loss=compile_args['loss'], 
-                optimizer=Adam(compile_args['init_lr']),
-                metrics=compile_args['metrics'],
-                loss_weights=compile_args['loss_weights']
-                )
-            else:
-                model.compile(
+            if model_args is not None:
+                # Crear y compilar el modelo
+                model = model_(**model_args)
+
+                if model_name == 'GMRRNet':
+                    model.compile(
                     loss=compile_args['loss'], 
                     optimizer=Adam(compile_args['init_lr']),
-                    metrics=compile_args['metrics']
+                    metrics=compile_args['metrics'],
+                    loss_weights=compile_args['loss_weights']
+                    )
+                else:
+                    model.compile(
+                        loss=compile_args['loss'], 
+                        optimizer=Adam(compile_args['init_lr']),
+                        metrics=compile_args['metrics']
+                    )
+                    
+                # Entrenar el modelo
+                model.fit(
+                    X_train, y_train, 
+                    epochs=30, 
+                    validation_data=(X_test, y_test), 
+                    verbose=0, 
+                    batch_size=16,
+                    callbacks=[early_stopping]
                 )
-                
-            # Entrenar el modelo
-            model.fit(
-                X_train, y_train, 
-                epochs=30, 
-                validation_data=(X_test, y_test), 
-                verbose=0, 
-                batch_size=16,
-                callbacks=[early_stopping]
-            )
+            else:
+                model = model_
+                model.fit(X_train, y_train)
+
             
             # Predicciones
-            y_pred_probs = model.predict(X_test, verbose=0)
+            y_pred_probs = model.predict(X_test)
             print(y_pred_probs)
             y_pred = np.argmax(y_pred_probs, axis=1) if y_pred_probs.shape[-1] > 1 else (y_pred_probs > 0.5).astype(int).flatten()
             y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
