@@ -12,7 +12,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
     cv_scores = []
 
     for fold, (train_subjects, test_subjects) in enumerate(folds):
-        print(f"Fold {fold+1}/{len(folds)}")
+        print(f"Fold {fold+1}/{len(folds)}. Test subjects: {test_subjects}")
 
         train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
         test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
@@ -50,17 +50,20 @@ def train_L24O_cv(model_, X, y, sbjs, model_args, compile_args, folds, model_nam
         )
 
         # Predicciones
-        y_pred_probs = model.predict(X_test, verbose=0)
-        print(y_pred_probs)
+
+        if model_name == 'GMRRNet':
+            y_pred_probs = model.predict(X_test, verbose=0)[0]
+        else:    
+            y_pred_probs = model.predict(X_test, verbose=0)
         y_pred = np.argmax(y_pred_probs, axis=1) if y_pred_probs.shape[-1] > 1 else (y_pred_probs > 0.5).astype(int).flatten()
         y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
 
         # Evaluaciones
         acc = model.evaluate(X_test, y_test, verbose=0)[-1]
-        recall = recall_score(y_test, y_pred, average='macro')
-        precision = precision_score(y_test, y_pred, average='macro')
-        kappa = cohen_kappa_score(y_test.argmax(axis=1), y_pred.argmax(axis=1))
-        auc = roc_auc_score(y_test, y_pred_prob, multi_class='ovr', average='macro')
+        recall = recall_score(y_true, y_pred, average='macro')
+        precision = precision_score(y_true, y_pred, average='macro')
+        kappa = cohen_kappa_score(y_true, y_pred)
+        auc = roc_auc_score(y_true, y_pred, multi_class='ovr', average='macro')
 
         fold_metrics = {
             'accuracy': acc,
