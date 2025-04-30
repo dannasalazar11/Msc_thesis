@@ -79,7 +79,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=
 
     return cv_scores
 
-def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=None, sbj_fin=None):
+def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=None, sbj_fin=None, model_name=''):
     logo = LeaveOneGroupOut()
     resultados = {}  # Diccionario para almacenar las métricas por sujeto
     
