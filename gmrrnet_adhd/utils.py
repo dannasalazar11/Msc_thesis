@@ -104,41 +104,43 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
                 min_delta=0.01,             
                 restore_best_weights=True  
             )
-
+            
             if model_args is not None:
-                # Crear y compilar el modelo
-                model = model_(**model_args)
-
-                if model_name == 'GMRRNet':
-                    model.compile(
-                    loss=compile_args['loss'], 
-                    optimizer=Adam(compile_args['init_lr']),
-                    metrics=compile_args['metrics'],
-                    loss_weights=compile_args['loss_weights']
+                    # Crear y compilar el modelo
+                    model = model_(**model_args)
+    
+                    compile_args_local = deepcopy(compile_args)
+    
+                    if callable(compile_args_local['optimizer']):
+                        compile_args_local['optimizer'] = compile_args_local['optimizer']()
+    
+                    model.compile(**compile_args_local)
+    
+                    early_stopping = EarlyStopping(
+                    monitor='val_loss', patience=10, min_delta=0.01, restore_best_weights=True
                     )
-                else:
-                    model.compile(
-                        loss=compile_args['loss'], 
-                        optimizer=Adam(compile_args['init_lr']),
-                        metrics=compile_args['metrics']
+                        
+                    # Entrenar el modelo
+                    model.fit(
+                        X_train, y_train, 
+                        epochs=30, 
+                        validation_data=(X_test, y_test), 
+                        verbose=0, 
+                        batch_size=16,
+                        callbacks=[early_stopping]
                     )
-                    
-                # Entrenar el modelo
-                model.fit(
-                    X_train, y_train, 
-                    epochs=30, 
-                    validation_data=(X_test, y_test), 
-                    verbose=0, 
-                    batch_size=16,
-                    callbacks=[early_stopping]
-                )
             else:
-                model = model_
-                model.fit(X_train, y_train)
+                    model = model_
+                    model.fit(X_train, y_train)
+    
+            # Predicciones
+    
+            if model_name == 'GMRRNet':
+                y_pred_probs = model.predict(X_test)[0]
+            else:    
+                y_pred_probs = model.predict(X_test)
 
             
-            # Predicciones
-            y_pred_probs = model.predict(X_test)
             y_pred = np.argmax(y_pred_probs, axis=1) if y_pred_probs.shape[-1] > 1 else (y_pred_probs > 0.5).astype(int).flatten()
             y_true = y_test if len(y_test.shape) == 1 else np.argmax(y_test, axis=1)
 
