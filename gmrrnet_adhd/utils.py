@@ -92,7 +92,7 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
     resultados = {}  # Diccionario para almacenar las métricas por sujeto
     
     i = 0    
-    for train_idx, test_idx in logo.split(X, y, groups=sbjs):
+    for train_idx, test_idx in logo.split(y, groups=sbjs):
         i += 1
         if sbj_in <= i <= sbj_fin:
             # Obtener el sujeto que se está utilizando como conjunto de prueba
@@ -102,9 +102,17 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
             print(f"Evaluando modelo para el sujeto #{i}: {sujeto_prueba}")
         
             # Dividir los datos en entrenamiento y prueba
-            X_train, X_test = np.array([X[j] for j in train_idx]), np.array([X[j] for j in test_idx])
-            y_train, y_test = np.array([y[j] for j in train_idx]), np.array([y[j] for j in test_idx])
+            if model_name == 'spatio_temporal':
+                freq, temp, spat = X
+    
+                X_train = [freq[train_idx], temp[train_idx], spat[train_idx]]
+                X_test = [freq[test_idx], temp[test_idx], spat[test_idx]]
+    
+            else:
+                X_train, X_test = X[train_idx], X[test_idx]
 
+            y_train, y_test = np.array([y[j] for j in train_idx]), np.array([y[j] for j in test_idx])
+            
             # Crear el callback de early stopping
             early_stopping = EarlyStopping(
                 monitor='val_loss',        
@@ -131,9 +139,9 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
                     # Entrenar el modelo
                     model.fit(
                         X_train, y_train, 
-                        epochs=50, 
+                        epochs=2, 
                         validation_data=(X_test, y_test), 
-                        verbose=0, 
+                        verbose=1, 
                         batch_size=16,
                         callbacks=[early_stopping]
                     )
