@@ -17,7 +17,15 @@ def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=
         train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
         test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
 
-        X_train, X_test = X[train_idx], X[test_idx]
+        if model_name == 'spatio_temporal':
+            freq, temp, spat = X
+
+            X_train = [freq[train_idx], temp[train_idx], spat[train_idx]]
+            X_test = [freq[test_idx], temp[test_idx], spat[test_idx]]
+
+        else:
+            X_train, X_test = X[train_idx], X[test_idx]
+            
         y_train, y_test = y[train_idx], y[test_idx]
 
         if model_args is not None:
