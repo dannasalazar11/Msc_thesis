@@ -100,7 +100,7 @@ def build_eeg_attention_model(
     concat = layers.concatenate([freq_vec, temp_vec, spat_vec], name="concat_streams")
     x = layers.Dense(128, activation="relu")(concat)
     x = layers.Dropout(0.3)(x)
-    output = layers.Dense(1, activation="sigmoid", name="attention_state")(x)
+    output = layers.Dense(2, activation="softmax", name="attention_state")(x)
 
     return Model(inputs=[freq_in, temp_in, spat_in], outputs=output, name="EEG_Attention_Transformer")
 
