@@ -139,9 +139,9 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
                     # Entrenar el modelo
                     model.fit(
                         X_train, y_train, 
-                        epochs=2, 
+                        epochs=50, 
                         validation_data=(X_test, y_test), 
-                        verbose=1, 
+                        verbose=0, 
                         batch_size=16,
                         callbacks=[early_stopping]
                     )
