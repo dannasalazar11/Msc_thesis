@@ -172,13 +172,7 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
             # recall = recall_score(y_true, y_pred, zero_division=0)
 
             # Guardar en el diccionario
-            resultados[sujeto_prueba] = {
-                'accuracy': acc,
-                # 'kappa': kappa,
-                # 'auc': auc,
-                # 'precision': precision,
-                # 'recall': recall
-            }
+            resultados[sujeto_prueba] = acc
             
             print(f"Métricas para {sujeto_prueba}: {resultados[sujeto_prueba]}\n")
     
