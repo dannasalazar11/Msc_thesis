@@ -40,7 +40,7 @@ def train_L24O_cv(model_, X, y, sbjs, model_args=None, compile_args=None, folds=
                 model.compile(**compile_args_local)
 
                 early_stopping = EarlyStopping(
-                monitor='val_loss', patience=20, min_delta=0.01, restore_best_weights=True
+                monitor='val_loss', patience=30, min_delta=0.01, restore_best_weights=True
                 )
                     
                 # Entrenar el modelo
