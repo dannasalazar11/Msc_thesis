@@ -271,14 +271,4 @@ def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     
     model = Model(inputs=input1, outputs=[softmax, entropies_out])
     
-    model.compile(
-        optimizer='adam',
-        loss=[
-            'binary_crossentropy',
-            None  # For entropy output
-        ],
-        loss_weights=[0.9, 0.1],
-        metrics=[['binary_accuracy'], [None]]
-    )
-    
     return model
