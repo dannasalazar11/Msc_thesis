@@ -265,8 +265,8 @@ def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     final_conv = BatchNormalization()(final_conv)
     
     flat = Flatten()(final_conv)
-    dense = Dense(nb_classes, name='output', kernel_constraint=max_norm(norm_rate))(flat)
-    dense = Dropout(0.2)(dense)
+    drop = Dropout(0.2)(flat)  # Aplica aquí
+    dense = Dense(nb_classes, name='output', kernel_constraint=max_norm(norm_rate))(drop)
     softmax = Activation('softmax', name='out_activation')(dense)
     
     model = Model(inputs=input1, outputs=[softmax, entropies_out])
