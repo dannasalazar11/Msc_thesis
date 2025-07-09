@@ -108,23 +108,28 @@ class RenyiMutualInformation(Loss):
         super().__init__(**kwargs)
 
     def call(self, y_true, y_pred):
-        """
-        y_true: 
-        y_pred: N x (F+1) las F entropías marginales y la entropía conjunta
-        """
-        
-        F = y_pred.shape[1]-1
-        entropy,  joint_entropy = tf.split(y_pred, [F,1], axis=-1)
-        
-        #Cast todo
+        F = y_pred.shape[1] - 1
+        entropy, joint_entropy = tf.split(y_pred, [F, 1], axis=-1)
+
         entropy = tf.cast(entropy, tf.float64)
         joint_entropy = tf.cast(joint_entropy, tf.float64)
         log_C = tf.math.log(tf.cast(self.C, tf.float64))
-        
-        mutual_information = tf.math.abs((tf.expand_dims(tf.reduce_sum(entropy, axis=-1), axis=-1) - joint_entropy)) / (F * log_C)
 
+        mutual_information = tf.math.abs(
+            tf.expand_dims(tf.reduce_sum(entropy, axis=-1), axis=-1) - joint_entropy
+        ) / (F * log_C)
 
         return mutual_information
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"C": self.C})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
     
 # Normalizamos 
 
