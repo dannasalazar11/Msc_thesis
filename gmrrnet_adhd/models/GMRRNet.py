@@ -4,6 +4,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
 from keras_nlp.layers import TransformerEncoder
+from tensorflow.keras.regularizers import l2 
 
 class GaussianKernelLayer(Layer):
     def __init__(self, **kwargs):
