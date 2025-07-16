@@ -231,7 +231,7 @@ class TransposeReshapeLayer(tf.keras.layers.Layer):
         return tf.expand_dims(x_resh, -1)
 
 def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512, 
-                                       norm_rate=0.25, alpha=2, num_heads=3):
+                                       norm_rate=0.25, alpha=2, num_heads=3, intermediate_dim=128):
     
     input1 = Input(shape=(Chans, Samples))
 
@@ -242,7 +242,7 @@ def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     x = LayerNormalization()(x)
 
     # 3 Apply TransformerEncoder
-    transformer_encoder = TransformerEncoder(num_heads=num_heads, intermediate_dim=128)
+    transformer_encoder = TransformerEncoder(num_heads=num_heads, intermediate_dim=intermediate_dim)
     x = transformer_encoder(x)
 
     # 4 Normalización después del Transformer
