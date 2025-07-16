@@ -4,7 +4,6 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
 from keras_nlp.layers import TransformerEncoder
-from tensorflow.keras.regularizers import l2 
 
 class GaussianKernelLayer(Layer):
     def __init__(self, **kwargs):
@@ -232,9 +231,7 @@ class TransposeReshapeLayer(tf.keras.layers.Layer):
         return tf.expand_dims(x_resh, -1)
 
 def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512, 
-                                       norm_rate=0.25, alpha=2, num_heads=3, l2_strength=None):
-    
-    reg = l2(l2_strength) if l2_strength > 0 else None
+                                       norm_rate=0.25, alpha=2, num_heads=3):
     
     input1 = Input(shape=(Chans, Samples))
 
@@ -266,15 +263,15 @@ def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     ])
     
     # 8 Extra convolutional stack
-    final_conv = Conv2D(3, kernel_size=3, padding='same', activation='relu', name='Conv2D_2', kernel_regularizer=reg)(inception)
+    final_conv = Conv2D(3, kernel_size=3, padding='same', activation='relu', name='Conv2D_2')(inception)
     final_conv = BatchNormalization()(final_conv)
     
-    final_conv = Conv2D(3, kernel_size=3, padding='same', activation='relu', name='Conv2D_3', kernel_regularizer=reg)(final_conv)    
+    final_conv = Conv2D(3, kernel_size=3, padding='same', activation='relu', name='Conv2D_3')(final_conv)
     final_conv = BatchNormalization()(final_conv)
     
     flat = Flatten()(final_conv)
     drop = Dropout(0.2)(flat)  # Aplica aquí
-    dense = Dense(nb_classes, name='output', kernel_constraint=max_norm(norm_rate), kernel_regularizer=reg)(drop)
+    dense = Dense(nb_classes, name='output', kernel_constraint=max_norm(norm_rate))(drop)
     softmax = Activation('softmax', name='out_activation')(dense)
     
     model = Model(inputs=input1, outputs=[softmax, entropies_out])
