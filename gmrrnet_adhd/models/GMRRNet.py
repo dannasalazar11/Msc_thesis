@@ -5,6 +5,7 @@ from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
 from keras_nlp.layers import TransformerEncoder
 
+@tf.keras.utils.register_keras_serializable()
 class GaussianKernelLayer(Layer):
     def __init__(self, **kwargs):
         super(GaussianKernelLayer, self).__init__(**kwargs)
@@ -101,7 +102,8 @@ def joint_renyi_entropy(K, alpha):
         joint_entropy = renyi_entropy(argument, alpha=alpha)
                                
         return joint_entropy
-    
+
+@tf.keras.utils.register_keras_serializable()
 class RenyiMutualInformation(Loss):
     def __init__(self, C, **kwargs):
         self.C = C
@@ -132,7 +134,7 @@ class RenyiMutualInformation(Loss):
 
     
 # Normalizamos 
-
+@tf.keras.utils.register_keras_serializable()
 class NormalizedBinaryCrossentropy(Loss):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -156,18 +158,13 @@ class NormalizedBinaryCrossentropy(Loss):
         cce_norm = tf.divide(cce, (cce_left + cce_right))
         
         return cce_norm
-    
+
+@tf.keras.utils.register_keras_serializable()
 class TransposeLayer(Layer):
     def call(self, x):
         return tf.transpose(x, perm = (0,3,1,2))
 
-class TransposeReshapeLayer(Layer):
-    def call(self, x):
-        N, C, T, F = tf.shape(x)[0], tf.shape(x)[1], tf.shape(x)[2], tf.shape(x)[3]
-        x_trans = tf.transpose(x, perm = (0,1,3,2)) # N x C x F x T
-        x_resh =  tf.reshape(x_trans, (N, C*F, T))
-        return tf.expand_dims(x_resh, -1)
-        
+@tf.keras.utils.register_keras_serializable()        
 class RenyiEntropyLayer(tf.keras.layers.Layer):
     def __init__(self, alpha=2, **kwargs):
         super(RenyiEntropyLayer, self).__init__(**kwargs)
@@ -199,6 +196,7 @@ class RenyiEntropyLayer(tf.keras.layers.Layer):
             return (tf.math.log(tf.reduce_sum(tf.math.real(tf.math.pow(e, self.alpha)), axis=-1)) / (1 - self.alpha))
 
 
+@tf.keras.utils.register_keras_serializable()
 class JointRenyiEntropyLayer(tf.keras.layers.Layer):
     def __init__(self, alpha, **kwargs):
         super(JointRenyiEntropyLayer, self).__init__(**kwargs)
@@ -223,12 +221,6 @@ class JointRenyiEntropyLayer(tf.keras.layers.Layer):
         joint_entropy = self.renyi_entropy_layer(argument)  # Llamada a la capa de entropía de Renyi
         return joint_entropy
 
-class TransposeReshapeLayer(tf.keras.layers.Layer):
-    def call(self, x):
-        N, C, T, F = tf.shape(x)[0], tf.shape(x)[1], tf.shape(x)[2], tf.shape(x)[3]
-        x_trans = tf.transpose(x, perm=(0,1,3,2))  # (N, C, F, T)
-        x_resh = tf.reshape(x_trans, (N, C * F, T))
-        return tf.expand_dims(x_resh, -1)
 
 def GMRRNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512, 
                                        norm_rate=0.25, alpha=2, num_heads=3, intermediate_dim=128):
