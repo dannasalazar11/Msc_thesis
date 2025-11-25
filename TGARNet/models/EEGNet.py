@@ -1,174 +1,111 @@
-import numpy as np
-import random
-from collections import defaultdict
-from copy import deepcopy
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, Activation, Dropout
+from tensorflow.keras.layers import Conv2D, AveragePooling2D
+from tensorflow.keras.layers import SeparableConv2D, DepthwiseConv2D
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import SpatialDropout2D
+from tensorflow.keras.layers import Input, Flatten, Reshape
+from tensorflow.keras.constraints import max_norm
 
-import tensorflow as tf
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-
-from sklearn.metrics import (
-    accuracy_score,
-    recall_score,
-    precision_score,
-    cohen_kappa_score,
-    roc_auc_score
-)
-
-
-def train_L24O_cv(model_builder, X, y, sbjs, model_args, compile_args, folds, model_name='', delta=10, seed=42):
-    all_fold_metrics = []
-    total_histories = []
-    models = {}
-
-    # ------------------------------------------
-    # 1. Construir un diccionario sujeto → clase
-    # ------------------------------------------
-    # Convertimos one-hot a clase entera
-    y_classes = np.argmax(y, axis=1)
-
-    subject_label = {}
-    for sbj in set(sbjs):
-        # tomo el primer segmento del sujeto (todos son iguales)
-        idx = sbjs.index(sbj)
-        subject_label[sbj] = y_classes[idx]   # 0 = CTRL, 1 = ADHD
-
-    # ==========================================
-    # INICIO CV
-    # ==========================================
-    for fold, (train_subjects, test_subjects) in enumerate(folds):
-
-        print(f"\n{'-'*60}")
-        print(f"Fold {fold+1}/{len(folds)}  |  Test subjects: {test_subjects}")
-        print(f"{'-'*60}")
-
-        # --- Índices originales ---
-        train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
-        test_idx  = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
-
-        # ==========================================
-        # 2. SELECCIÓN ESTRATIFICADA DE VALIDACIÓN
-        # ==========================================
-
-        # Separar los sujetos del fold según clase
-        train_ADHD = [s for s in train_subjects if subject_label[s] == 1]
-        train_CTRL = [s for s in train_subjects if subject_label[s] == 0]
-
-        # Semilla reproducible por fold
-        rng = np.random.default_rng(seed + fold)
-
-        # Seleccionar 8 por clase
-        val_ADHD = rng.choice(train_ADHD, size=8, replace=False)
-        val_CTRL = rng.choice(train_CTRL, size=8, replace=False)
-
-        val_subjects = set(val_ADHD.tolist() + val_CTRL.tolist())
-
-        # índices de validación
-        val_idx = [i for i, sbj in enumerate(sbjs) if sbj in val_subjects]
-
-        # entrenamiento final = train_idx - val_idx
-        train_idx_final = [i for i in train_idx if sbjs[i] not in val_subjects]
-
-        # Datos finales
-        X_train_final, y_train_final = X[train_idx_final], y[train_idx_final]
-        X_val,         y_val         = X[val_idx],        y[val_idx]
-        X_test,        y_test        = X[test_idx],       y[test_idx]
-        sbjs_test = [sbjs[i] for i in test_idx]
-
-        # ==========================================
-        # 3. MODELO
-        # ==========================================
-        tf.keras.backend.clear_session()
-        np.random.seed(seed + fold)
-        random.seed(seed + fold)
-        tf.random.set_seed(seed + fold)
+def EEGNet(nb_classes, Chans = 64, Samples = 128, 
+             dropoutRate = 0.5, kernLength = 64, F1 = 8, 
+             D = 2, F2 = 16, norm_rate = 0.25, dropoutType = 'Dropout'):
+    """ Keras Implementation of EEGNet
+    http://iopscience.iop.org/article/10.1088/1741-2552/aace8c/meta
+    Note that this implements the newest version of EEGNet and NOT the earlier
+    version (version v1 and v2 on arxiv). We strongly recommend using this
+    architecture as it performs much better and has nicer properties than
+    our earlier version. For example:
         
-        # --- Callbacks ---
-        # CALLBACKS
-        early_stopping = EarlyStopping(
-            monitor='val_loss', patience=30, min_delta=1e-4, restore_best_weights=True, verbose=1
-        )
-        reduce_lr = ReduceLROnPlateau(
-            monitor='val_loss', factor=0.5, patience=30, min_lr=1e-6, verbose=1
-        )
-
-        # --- Build and Compile Model for each fold ---
-        tf.keras.backend.clear_session() #<-- Clear session to prevent any state leakage
+        1. Depthwise Convolutions to learn spatial filters within a 
+        temporal convolution. The use of the depth_multiplier option maps 
+        exactly to the number of spatial filters learned within a temporal
+        filter. This matches the setup of algorithms like FBCSP which learn 
+        spatial filters within each filter in a filter-bank. This also limits 
+        the number of free parameters to fit when compared to a fully-connected
+        convolution. 
         
-        # Re-set seeds for each fold for perfect reproducibility of weight initialization
-        np.random.seed(seed + fold)
-        random.seed(seed + fold)
-        tf.random.set_seed(seed + fold)
-
-        model = model_builder(**model_args)
-        # Use a deepcopy to prevent the optimizer state from carrying over
-        compile_args_local = deepcopy(compile_args)
-        if callable(compile_args_local["optimizer"]):
-            compile_args_local["optimizer"] = compile_args_local["optimizer"]()  # <-- aquí se reinicia
-        model.compile(**compile_args_local)
-
-        # --- Train the Model ---
-        model.fit(
-            X_train_final, y_train_final,
-            epochs=100,  #<-- Increased epochs to give LR scheduler more time to work
-            validation_data=(X_val, y_val),
-            verbose=0, #<-- Verbose=2 gives one line per epoch, cleaner log
-            batch_size=16,
-            callbacks=[early_stopping, 
-                       reduce_lr]
-        )
-
-        # --- Predictions and Evaluation ---
-        y_pred_probs = model.predict(X_test)
-        print(y_pred_probs.shape)
-        y_pred = np.argmax(y_pred_probs, axis=1)
-        y_true = np.argmax(y_test, axis=1)
-
-        # Overall fold metrics
-        fold_metrics = {
-            'accuracy': accuracy_score(y_true, y_pred),
-            'recall': recall_score(y_true, y_pred, average='macro', zero_division=0),
-            'precision': precision_score(y_true, y_pred, average='macro', zero_division=0),
-            'kappa': cohen_kappa_score(y_true, y_pred),
-            'auc': roc_auc_score(y_true, y_pred_probs[:, 1]) # Use probabilities for AUC
-        }
-        print(f"\nFold {fold+1} Metrics: {fold_metrics}")
-        all_fold_metrics.append(fold_metrics)
-        models[fold] = model
-
-        # Accuracy por sujeto de test
-        subject_correct = defaultdict(list)
-        for yt, yp, sbj in zip(y_true, y_pred, sbjs_test):
-            subject_correct[sbj].append(int(yt == yp))
-
-        subject_accuracies = {
-            sbj: np.mean(subject_correct[sbj]) for sbj in subject_correct
-        }
-
-        print("Average accuracy per test subject:")
-        for sbj in test_subjects:
-            acc_sbj = subject_accuracies.get(sbj, None)
-            if acc_sbj is not None:
-                print(f"  {sbj}: {acc_sbj:.4f}")
-                
+        2. Separable Convolutions to learn how to optimally combine spatial
+        filters across temporal bands. Separable Convolutions are Depthwise
+        Convolutions followed by (1x1) Pointwise Convolutions. 
         
-    # --- Final Comprehensive Report ---
-    print("\n" + "="*50)
-    print("Cross-Validation Final Results")
-    print("="*50)
     
-    # Calculate mean and std dev for each metric
-    mean_metrics = {}
-    for key in all_fold_metrics[0].keys():
-        values = [f[key] for f in all_fold_metrics]
-        mean_metrics[f'mean_{key}'] = np.mean(values)
-        mean_metrics[f'std_{key}'] = np.std(values)
+    While the original paper used Dropout, we found that SpatialDropout2D 
+    sometimes produced slightly better results for classification of ERP 
+    signals. However, SpatialDropout2D significantly reduced performance 
+    on the Oscillatory dataset (SMR, BCI-IV Dataset 2A). We recommend using
+    the default Dropout in most cases.
+        
+    Assumes the input signal is sampled at 128Hz. If you want to use this model
+    for any other sampling rate you will need to modify the lengths of temporal
+    kernels and average pooling size in blocks 1 and 2 as needed (double the 
+    kernel lengths for double the sampling rate, etc). Note that we haven't 
+    tested the model performance with this rule so this may not work well. 
+    
+    The model with default parameters gives the EEGNet-8,2 model as discussed
+    in the paper. This model should do pretty well in general, although it is
+	advised to do some model searching to get optimal performance on your
+	particular dataset.
+    We set F2 = F1 * D (number of input filters = number of output filters) for
+    the SeparableConv2D layer. We haven't extensively tested other values of this
+    parameter (say, F2 < F1 * D for compressed learning, and F2 > F1 * D for
+    overcomplete). We believe the main parameters to focus on are F1 and D. 
+    Inputs:
+        
+      nb_classes      : int, number of classes to classify
+      Chans, Samples  : number of channels and time points in the EEG data
+      dropoutRate     : dropout fraction
+      kernLength      : length of temporal convolution in first layer. We found
+                        that setting this to be half the sampling rate worked
+                        well in practice. For the SMR dataset in particular
+                        since the data was high-passed at 4Hz we used a kernel
+                        length of 32.     
+      F1, F2          : number of temporal filters (F1) and number of pointwise
+                        filters (F2) to learn. Default: F1 = 8, F2 = F1 * D. 
+      D               : number of spatial filters to learn within each temporal
+                        convolution. Default: D = 2
+      dropoutType     : Either SpatialDropout2D or Dropout, passed as a string.
+    """
+    
+    if dropoutType == 'SpatialDropout2D':
+        dropoutType = SpatialDropout2D
+    elif dropoutType == 'Dropout':
+        dropoutType = Dropout
+    else:
+        raise ValueError('dropoutType must be one of SpatialDropout2D '
+                         'or Dropout, passed as a string.')
+    
+    input1   = Input(shape = (Chans, Samples))
 
-    print("Individual Fold Accuracies:")
-    for i, f in enumerate(all_fold_metrics):
-        print(f"  Fold {i+1}: {f['accuracy']:.4f}")
+    input1 = Reshape((Chans, Samples, 1))(input1)
+
+    ##################################################################
+    block1       = Conv2D(F1, (1, kernLength), padding = 'same',
+                                   name='Conv2D_1',
+                                   input_shape = (Chans, Samples, 1),
+                                   use_bias = False)(input1)
+    block1       = BatchNormalization()(block1)
+    block1       = DepthwiseConv2D((Chans, 1), use_bias = False, 
+                                   name='Depth_wise_Conv2D_1',
+                                   depth_multiplier = D,
+                                   depthwise_constraint = max_norm(1.))(block1)
+    block1       = BatchNormalization()(block1)
+    block1       = Activation('elu')(block1)
+    block1       = AveragePooling2D((1, 4))(block1)
+    block1       = dropoutType(dropoutRate)(block1)
+    
+    block2       = SeparableConv2D(F2, (1, 16),
+                                   name='Separable_Conv2D_1',
+                                   use_bias = False, padding = 'same')(block1)
+    block2       = BatchNormalization()(block2)
+    block2       = Activation('elu')(block2)
+    block2       = AveragePooling2D((1, 8))(block2)
+    block2       = dropoutType(dropoutRate)(block2)
         
-    print("\nAverage Performance across all folds:")
-    for key, value in mean_metrics.items():
-        print(f"  {key}: {value:.4f}")
-        
-    return all_fold_metrics
+    flatten      = Flatten(name = 'flatten')(block2)
+    
+    dense        = Dense(nb_classes, name = 'output', 
+                         kernel_constraint = max_norm(norm_rate))(flatten)
+    softmax      = Activation('softmax', name = 'out_activation')(dense)
+    
+    return Model(inputs=input1, outputs=softmax)
