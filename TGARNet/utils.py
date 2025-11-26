@@ -3,6 +3,40 @@ import os
 import scipy.io
 from sklearn.preprocessing import OneHotEncoder
 from copy import deepcopy
+
+def segmentar_senales(db, labels):
+    """
+    Divide las señales EEG en segmentos de 512 instantes con un traslape del 50%.
+    
+    Args:
+        db (dict): Diccionario donde las claves son los nombres de los sujetos y los valores
+                   son matrices de forma CxT_i (C = canales, T_i = tiempo).
+    
+    Returns:
+        dict: Nuevo diccionario con los segmentos de cada sujeto.
+    """
+    segmentos_db = {}
+    segmento_tamano = 512
+    paso = int(segmento_tamano * 0.5)  # Traslape del 50%
+    i = 0
+    
+    segmentos = []
+    y = []
+    sbjs = []
+    
+    for sujeto, senal in db.items():
+        C, T = senal.shape
+        
+        # Crear segmentos con traslape
+        for inicio in range(0, T - segmento_tamano + 1, paso):
+            segmento = senal[:, inicio:inicio + segmento_tamano]
+            segmentos.append(segmento)
+            y.append(labels[i])
+            sbjs.append(sujeto)
+
+        i += 1
+    return np.array(segmentos), np.array(y), sbjs
+    
     
 
 def get_segmented_data():
