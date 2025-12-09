@@ -132,18 +132,13 @@ def train_LOSO(model_, X, y, sbjs, model_args=None, compile_args=None, sbj_in=No
     
                     model.compile(**compile_args_local)
     
-                    early_stopping = EarlyStopping(
-                    monitor='val_loss', patience=10, min_delta=0.01, restore_best_weights=True
-                    )
-                        
                     # Entrenar el modelo
                     model.fit(
                         X_train, y_train, 
                         epochs=50, 
                         validation_data=(X_test, y_test), 
                         verbose=0, 
-                        batch_size=16,
-                        callbacks=[early_stopping]
+                        batch_size=16
                     )
             else:
                     model = model_
