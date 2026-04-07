@@ -555,7 +555,7 @@ def TGARNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     input1 = Input(shape=(Chans, Samples))
 
     # 1 Reorganize data for Transformer (Samples, Chans)
-    x = Permute((Samples, Chans))(input1)
+    x = Permute((2, 1))(input1)
 
     # 2 Normalización antes del Transformer
     x = LayerNormalization()(x)
