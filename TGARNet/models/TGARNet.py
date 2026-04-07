@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, Conv2D, Concatenate, Input, Reshape, Flatten, Dense, Dropout, Activation, LayerNormalization, BatchNormalization
+from tensorflow.keras.layers import Layer, Conv2D, Concatenate, Input, Reshape, Flatten, Dense, Dropout, Activation, LayerNormalization, BatchNormalization, Permute
 from tensorflow.keras.models import Model
 from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
@@ -555,7 +555,7 @@ def TGARNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     input1 = Input(shape=(Chans, Samples))
 
     # 1 Reorganize data for Transformer (Samples, Chans)
-    x = Reshape((Samples, Chans))(input1)
+    x = Permute((Samples, Chans))(input1)
 
     # 2 Normalización antes del Transformer
     x = LayerNormalization()(x)
@@ -568,13 +568,14 @@ def TGARNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512,
     x = LayerNormalization()(x)
 
     # 5 Restore original shape (Chans, Samples, 1)
+    x = Permute((2, 1))(x)
     x = Reshape((Chans, Samples, 1))(x)
     
     # 6 Inception with KernelConv
     concatenated_kernels, inception, kernel_weights = inception_block(x, 5, num_kernels, kernel_sigmas)
     
     # 7 Renyi entropies
-    concatenated_kernels = TransposeLayer()(concatenated_kernels) 
+    concatenated_kernels = Permute((3, 1, 2))(concatenated_kernels)
     layer_entropy = RenyiEntropyLayer(alpha=alpha)(concatenated_kernels)
     layer_joint_entropy = JointRenyiEntropyLayer(alpha=alpha)(concatenated_kernels)
     entropies_out = Concatenate(axis=-1, name='concatenated_entropies')([
