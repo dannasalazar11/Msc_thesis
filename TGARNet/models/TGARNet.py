@@ -345,6 +345,7 @@ def inception_block(x, F, num_kernels, kernel_sigmas):
     concatenated_kernels = Concatenate(axis=-1, name='concatenated_kernels')(kernels)
 
     return concatenated_kernels, inception, kernel_weights_out
+
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, Concatenate, Input, Reshape, Flatten, Dense, Dropout, Activation, LayerNormalization, BatchNormalization
 from tensorflow.keras.models import Model
