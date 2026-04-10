@@ -4,6 +4,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.constraints import max_norm
 from tensorflow.keras.losses import Loss
 from keras_nlp.layers import TransformerEncoder
+from tensorflow.keras import layers as tf_layers
 
 @tf.keras.utils.register_keras_serializable()
 class GaussianKernelLayer(Layer):
@@ -201,8 +202,7 @@ class JointRenyiEntropyLayer(tf.keras.layers.Layer):
         
         joint_entropy = self.renyi_entropy_layer(argument)  # Llamada a la capa de entropía de Renyi
         return joint_entropy
-import keras
-from keras import layers, initializers, activations, ops
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -212,7 +212,7 @@ from collections import defaultdict
 
 
 # --- 1. Clase de Atención Inspeccionable (hereda de la original de Keras) ---
-class InspectableMultiHeadAttention(layers.MultiHeadAttention):
+class InspectableMultiHeadAttention(tf_layers.MultiHeadAttention):
     """
     Extiende la MultiHeadAttention original de Keras para añadir
     un método de inspección de pesos de proyección.
