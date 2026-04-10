@@ -248,12 +248,12 @@ class InspectableTransformerEncoder(TransformerEncoder):
             name="self_attention_inspectable"
         )
 
-        self._self_attention_layer_norm = layers.LayerNormalization(epsilon=1e-6)
-        self._self_attention_dropout = layers.Dropout(rate=self.dropout)
-        self._feedforward_intermediate_dense = layers.Dense(self.intermediate_dim, activation=self.activation)
-        self._feedforward_output_dense = layers.Dense(hidden_dim)
-        self._feedforward_layer_norm = layers.LayerNormalization(epsilon=1e-6)
-        self._feedforward_dropout = layers.Dropout(rate=self.dropout)
+        self._self_attention_layer_norm = tf_layers.LayerNormalization(epsilon=1e-6)
+        self._self_attention_dropout = tf_layers.Dropout(rate=self.dropout)
+        self._feedforward_intermediate_dense = tf_layers.Dense(self.intermediate_dim, activation=self.activation)
+        self._feedforward_output_dense = tf_layers.Dense(hidden_dim)
+        self._feedforward_layer_norm = tf_layers.LayerNormalization(epsilon=1e-6)
+        self._feedforward_dropout = tf_layers.Dropout(rate=self.dropout)
 
         # Atributo para almacenar los últimos scores
         self._last_attention_scores = None
