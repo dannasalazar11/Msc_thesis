@@ -16,13 +16,14 @@ from sklearn.metrics import (
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.optimizers import Adam
 
+
 def segmentar_senales(db, labels):
     """
-    Divide las señales EEG en segmentos de 512 instantes con un traslape del 50%.
+    Divide las se�ales EEG en segmentos de 512 instantes con un traslape del 50%.
 
     Args:
         db (dict): Diccionario donde las claves son los nombres de los sujetos y los valores
-                   son matrices de forma CxT_i (C = canales, T_i = tiempo).
+            son matrices de forma CxT_i (C = canales, T_i = tiempo).
 
     Returns:
         tuple:
@@ -32,7 +33,7 @@ def segmentar_senales(db, labels):
             - window_ids: lista con identificador de ventana por segmento
     """
     segmento_tamano = 512
-    paso = int(segmento_tamano * 0.5)  # 50% overlap
+    paso = int(segmento_tamano * 0.5)
     i = 0
 
     segmentos = []
@@ -41,11 +42,11 @@ def segmentar_senales(db, labels):
     window_ids = []
 
     for sujeto, senal in db.items():
-        C, T = senal.shape
+        _, total_instantes = senal.shape
         window_count = 1
 
-        for inicio in range(0, T - segmento_tamano + 1, paso):
-            segmento = senal[:, inicio:inicio + segmento_tamano]
+        for inicio in range(0, total_instantes - segmento_tamano + 1, paso):
+            segmento = senal[:, inicio : inicio + segmento_tamano]
             segmentos.append(segmento)
             y.append(labels[i])
             sbjs.append(sujeto)
@@ -59,36 +60,34 @@ def segmentar_senales(db, labels):
 
 def get_segmented_data():
     """
-    Se tiene que agregar en kaggle la base de datos
+    Se tiene que agregar en kaggle la base de datos.
     """
-    ruta_carpeta_TDAH = '/kaggle/input/datasets/daprosero/mi-tdah-dataset/MI_TDAH_Dataset/TDAH/ieee/ADHD_group'
-    ruta_carpeta_control = '/kaggle/input/datasets/daprosero/mi-tdah-dataset/MI_TDAH_Dataset/TDAH/ieee/Control_group'
+    ruta_carpeta_tdah = (
+        "/kaggle/input/datasets/daprosero/mi-tdah-dataset/MI_TDAH_Dataset/TDAH/ieee/ADHD_group"
+    )
+    ruta_carpeta_control = (
+        "/kaggle/input/datasets/daprosero/mi-tdah-dataset/MI_TDAH_Dataset/TDAH/ieee/Control_group"
+    )
 
-    sujetos_TDAH = [archivo[:-4] for archivo in os.listdir(ruta_carpeta_TDAH) if archivo.endswith('.mat')]
-    sujetos_TDAH.pop()
-    sujetos_control = [archivo[:-4] for archivo in os.listdir(ruta_carpeta_control) if archivo.endswith('.mat')]
-
-    diagnostico = {}
-
-    for sbj in sujetos_TDAH:
-        diagnostico[sbj] = 1
-
-    for sbj in sujetos_control:
-        diagnostico[sbj] = 0
+    sujetos_tdah = [archivo[:-4] for archivo in os.listdir(ruta_carpeta_tdah) if archivo.endswith(".mat")]
+    sujetos_tdah.pop()
+    sujetos_control = [
+        archivo[:-4] for archivo in os.listdir(ruta_carpeta_control) if archivo.endswith(".mat")
+    ]
 
     eeg_tdah = {}
-    for sbj in sujetos_TDAH:
-        mat_file_path = ruta_carpeta_TDAH + '/' + sbj + '.mat'
+    for sujeto in sujetos_tdah:
+        mat_file_path = f"{ruta_carpeta_tdah}/{sujeto}.mat"
         data = scipy.io.loadmat(mat_file_path)
         columna = list(data.keys())[-1]
-        eeg_tdah[sbj] = data[columna].T
+        eeg_tdah[sujeto] = data[columna].T
 
     eeg_control = {}
-    for sbj in sujetos_control:
-        mat_file_path = ruta_carpeta_control + '/' + sbj + '.mat'
+    for sujeto in sujetos_control:
+        mat_file_path = f"{ruta_carpeta_control}/{sujeto}.mat"
         data = scipy.io.loadmat(mat_file_path)
         columna = list(data.keys())[-1]
-        eeg_control[sbj] = data[columna].T
+        eeg_control[sujeto] = data[columna].T
 
     db = eeg_control | eeg_tdah
     zeros = np.zeros(len(eeg_control))
@@ -107,35 +106,38 @@ class DynamicSchedule(tf.keras.callbacks.Callback):
     def __init__(self, total_epochs, optimizer, eta_0=1e-3, alpha=10, beta=0.75, delta=10):
         super().__init__()
         self.total_epochs = total_epochs
+        self.optimizer = optimizer
         self.eta_0 = eta_0
         self.alpha = alpha
         self.beta = beta
         self.delta = delta
-        self.optimizer = optimizer
         self.lambda_val = 0.0
 
     def get_eta(self, epoch):
-        p = epoch / self.total_epochs
-        return self.eta_0 * (1 + self.alpha * p) ** (-self.beta)
+        progress = epoch / self.total_epochs
+        return self.eta_0 * (1 + self.alpha * progress) ** (-self.beta)
 
     def get_lambda(self, epoch):
-        p = epoch / self.total_epochs
-        return 2 * (1 - np.exp(-self.delta * p)) / (1 + np.exp(-self.delta * p))
+        progress = epoch / self.total_epochs
+        return 2 * (1 - np.exp(-self.delta * progress)) / (1 + np.exp(-self.delta * progress))
 
     def on_epoch_begin(self, epoch, logs=None):
+        del logs
         new_lr = self.get_eta(epoch)
         self.lambda_val = self.get_lambda(epoch)
 
-        # ✅ Ajustar learning rate correctamente
         if hasattr(self.optimizer.learning_rate, "assign"):
             self.optimizer.learning_rate.assign(new_lr)
         else:
             tf.keras.backend.set_value(self.optimizer.learning_rate, new_lr)
 
-        # ✅ Actualizar dinámicamente los pesos de pérdida SIN recompilar
         if hasattr(self.model, "loss_weights") and isinstance(self.model.loss_weights, dict):
             self.model.loss_weights["out_activation"] = 1.0
             self.model.loss_weights["entropies_out"] = self.lambda_val
+
+        print(f"[Epoch {epoch + 1}] LR={float(new_lr):.6f} | lambda={self.lambda_val:.3f}")
+
+
 def SGKF(
     model_builder,
     X,
@@ -151,17 +153,29 @@ def SGKF(
     del model_name
     all_fold_metrics = []
 
-    for fold, (train_subjects, test_subjects) in enumerate(folds):
+    for fold, (train_subjects, val_subjects, test_subjects) in enumerate(folds):
         print(f"\n{'-' * 60}")
-        print(f"Fold {fold + 1}/{len(folds)}  |  Test subjects: {test_subjects}")
+        print(
+            f"Fold {fold + 1}/{len(folds)}"
+            f"  |  Val subjects: {val_subjects}"
+            f"  |  Test subjects: {test_subjects}"
+        )
         print(f"{'-' * 60}")
 
         train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
+        val_idx = [i for i, sbj in enumerate(sbjs) if sbj in val_subjects]
         test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
 
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+        X_train, X_val, X_test = X[train_idx], X[val_idx], X[test_idx]
+        y_train, y_val, y_test = y[train_idx], y[val_idx], y[test_idx]
         sbjs_test = [sbjs[i] for i in test_idx]
+
+        print(
+            f"\nFold n�mero {fold + 1}:"
+            f"\nDatos de train: {X_train.shape},"
+            f"\nDatos de valid: {X_val.shape} y sujetos valid {val_subjects},"
+            f"\nDatos de test: {X_test.shape} y sujetos test {test_subjects}"
+        )
 
         tf.keras.backend.clear_session()
 
@@ -192,11 +206,11 @@ def SGKF(
                 "kernel_weights_out": np.zeros((len(y_train), num_kernels)),
             },
             validation_data=(
-                X_test,
+                X_val,
                 {
-                    "out_activation": y_test,
-                    "entropies_out": np.zeros((len(y_test), 4)),
-                    "kernel_weights_out": np.zeros((len(y_test), num_kernels)),
+                    "out_activation": y_val,
+                    "entropies_out": np.zeros((len(y_val), 4)),
+                    "kernel_weights_out": np.zeros((len(y_val), num_kernels)),
                 },
             ),
             epochs=100,
@@ -218,21 +232,21 @@ def SGKF(
             "auc": roc_auc_score(y_true, y_pred_probs[:, 1]),
         }
         all_fold_metrics.append(fold_metrics)
-        print(f"Fold {fold + 1} Metrics: {fold_metrics}")
+        print(f"Fold {fold + 1} Metrics (test): {fold_metrics}")
 
         subject_correct = defaultdict(list)
-        for y_true_value, y_pred_value, subject in zip(y_true, y_pred, sbjs_test):
-            subject_correct[subject].append(int(y_true_value == y_pred_value))
+        for y_true_value, y_pred_value, sujeto in zip(y_true, y_pred, sbjs_test):
+            subject_correct[sujeto].append(int(y_true_value == y_pred_value))
 
         subject_accuracies = {
-            subject: np.mean(correct_predictions)
-            for subject, correct_predictions in subject_correct.items()
+            sujeto: np.mean(correct_predictions)
+            for sujeto, correct_predictions in subject_correct.items()
         }
-        print("Accuracy promedio por sujeto:")
-        for subject in test_subjects:
-            subject_accuracy = subject_accuracies.get(subject)
+        print("Accuracy promedio por sujeto en test:")
+        for sujeto in test_subjects:
+            subject_accuracy = subject_accuracies.get(sujeto)
             if subject_accuracy is not None:
-                print(f"  {subject}: {subject_accuracy:.4f}")
+                print(f"  {sujeto}: {subject_accuracy:.4f}")
 
     print("\nIndividual Fold Accuracies:")
     accs_general = []
@@ -241,5 +255,3 @@ def SGKF(
         accs_general.append(fold_metric["accuracy"])
 
     return np.mean(accs_general)
-
-
