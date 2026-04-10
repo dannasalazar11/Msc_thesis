@@ -135,7 +135,7 @@ class DynamicSchedule(tf.keras.callbacks.Callback):
             self.model.loss_weights["out_activation"] = 1.0
             self.model.loss_weights["entropies_out"] = self.lambda_val
 
-        print(f"[Epoch {epoch + 1}] LR={float(new_lr):.6f} | lambda={self.lambda_val:.3f}")
+        # print(f"[Epoch {epoch + 1}] LR={float(new_lr):.6f} | lambda={self.lambda_val:.3f}")
 
 
 def SGKF(
