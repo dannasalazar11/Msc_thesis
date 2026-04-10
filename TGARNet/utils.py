@@ -107,38 +107,35 @@ class DynamicSchedule(tf.keras.callbacks.Callback):
     def __init__(self, total_epochs, optimizer, eta_0=1e-3, alpha=10, beta=0.75, delta=10):
         super().__init__()
         self.total_epochs = total_epochs
-        self.optimizer = optimizer
         self.eta_0 = eta_0
         self.alpha = alpha
         self.beta = beta
         self.delta = delta
+        self.optimizer = optimizer
         self.lambda_val = 0.0
 
     def get_eta(self, epoch):
-        progress = epoch / self.total_epochs
-        return self.eta_0 * (1 + self.alpha * progress) ** (-self.beta)
+        p = epoch / self.total_epochs
+        return self.eta_0 * (1 + self.alpha * p) ** (-self.beta)
 
     def get_lambda(self, epoch):
-        progress = epoch / self.total_epochs
-        return 2 * (1 - np.exp(-self.delta * progress)) / (1 + np.exp(-self.delta * progress))
+        p = epoch / self.total_epochs
+        return 2 * (1 - np.exp(-self.delta * p)) / (1 + np.exp(-self.delta * p))
 
     def on_epoch_begin(self, epoch, logs=None):
-        del logs
         new_lr = self.get_eta(epoch)
         self.lambda_val = self.get_lambda(epoch)
 
+        # ✅ Ajustar learning rate correctamente
         if hasattr(self.optimizer.learning_rate, "assign"):
             self.optimizer.learning_rate.assign(new_lr)
         else:
             tf.keras.backend.set_value(self.optimizer.learning_rate, new_lr)
 
+        # ✅ Actualizar dinámicamente los pesos de pérdida SIN recompilar
         if hasattr(self.model, "loss_weights") and isinstance(self.model.loss_weights, dict):
             self.model.loss_weights["out_activation"] = 1.0
             self.model.loss_weights["entropies_out"] = self.lambda_val
-
-        print(f"[Epoch {epoch + 1}] LR={float(new_lr):.6f} | lambda={self.lambda_val:.3f}")
-
-
 def SGKF(
     model_builder,
     X,
