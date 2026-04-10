@@ -551,7 +551,7 @@ class JointRenyiEntropyLayer(tf.keras.layers.Layer):
         joint_entropy = self.renyi_entropy_layer(argument)  # Llamada a la capa de entropía de Renyi
         return joint_entropy
 def TGARNet(num_kernels=3, nb_classes=2, Chans=19, Samples=512, 
-                                       norm_rate=0.25, alpha=2, num_heads=3, intermediate_dim=128, kernel_sigmas=[]):
+                                       norm_rate=0.25, alpha=2, num_heads=3, intermediate_dim=128, kernel_sigmas=[1,2,3]):
 
     input1 = Input(shape=(Chans, Samples))
 
