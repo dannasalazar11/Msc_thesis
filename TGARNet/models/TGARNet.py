@@ -258,7 +258,7 @@ class InspectableTransformerEncoder(TransformerEncoder):
         # Atributo para almacenar los últimos scores
         self._last_attention_scores = None
 
-        self.built = True
+        super().build(input_shape)
 
     def call(self, inputs, padding_mask=None, training=False):
         # SELF-ATTENTION
