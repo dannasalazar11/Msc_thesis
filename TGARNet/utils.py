@@ -19,7 +19,7 @@ from tensorflow.keras.optimizers import Adam
 
 def segmentar_senales(db, labels):
     """
-    Divide las señales EEG en segmentos de 512 instantes con un traslape del 50%.
+    Divide las seÃ±ales EEG en segmentos de 512 instantes con un traslape del 50%.
 
     Args:
         db (dict): Diccionario donde las claves son los nombres de los sujetos y los valores
@@ -171,7 +171,7 @@ def SGKF(
         sbjs_test = [sbjs[i] for i in test_idx]
 
         print(
-            f"\nFold número {fold + 1}:"
+            f"\nFold nï¿½mero {fold + 1}:"
             f"\nDatos de train: {X_train.shape},"
             f"\nDatos de valid: {X_val.shape} y sujetos valid {val_subjects},"
             f"\nDatos de test: {X_test.shape} y sujetos test {test_subjects}"
