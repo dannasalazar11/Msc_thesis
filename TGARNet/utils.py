@@ -15,6 +15,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 
 def segmentar_senales(db, labels):
@@ -171,7 +172,7 @@ def SGKF(
         sbjs_test = [sbjs[i] for i in test_idx]
 
         print(
-            f"\nFold número {fold + 1}:"
+            f"\nFold n�mero {fold + 1}:"
             f"\nDatos de train: {X_train.shape},"
             f"\nDatos de valid: {X_val.shape} y sujetos valid {val_subjects},"
             f"\nDatos de test: {X_test.shape} y sujetos test {test_subjects}"
@@ -198,6 +199,17 @@ def SGKF(
             delta=delta,
         )
 
+                # --- Callbacks ---
+        early_stopping = EarlyStopping(
+            monitor='val_loss', patience=25, min_delta=1e-4, restore_best_weights=True, verbose=1
+        )
+        reduce_lr = ReduceLROnPlateau(
+            monitor='val_loss', factor=0.5, patience=10, min_lr=1e-6, verbose=1
+        )
+        dynamic_schedule = DynamicSchedule(
+            total_epochs=100, optimizer=Adam(learning_rate=1e-3), delta=delta
+        )
+
         model.fit(
             X_train,
             {
@@ -215,7 +227,9 @@ def SGKF(
             ),
             epochs=100,
             batch_size=16,
-            callbacks=[dynamic_schedule],
+            callbacks=[
+                early_stopping, reduce_lr, # probando estos dos
+                dynamic_schedule],
             verbose=0,
         )
 
