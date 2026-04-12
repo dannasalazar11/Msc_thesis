@@ -193,7 +193,8 @@ def SGKF(
 
         print(
             f"\nFold número {fold + 1}:"
-            f"\nDatos de train (train + val): {X_train.shape}, sujetos train {train_subjects_full},"
+            # f"\nDatos de train (train + val): {X_train.shape}, sujetos train {train_subjects_full},"
+            f"\nDatos de train: {X_train.shape}, sujetos train {train_subjects_full},"
             f"\nDatos de test: {X_test.shape}, sujetos test {test_subjects}"
         )
 
