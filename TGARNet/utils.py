@@ -173,13 +173,13 @@ def SGKF(
 
     for fold, (train_subjects, val_subjects, test_subjects) in enumerate(folds):
         print(f"\n{'-' * 60}")
-        print(
-            f"Fold {fold + 1}/{len(folds)}"
-            f"  |  Train subjects: {train_subjects}"
-            f"  |  Val subjects (se unirán a train): {val_subjects}"
-            f"  |  Test subjects: {test_subjects}"
-        )
-        print(f"{'-' * 60}")
+        # print(
+        #     f"Fold {fold + 1}/{len(folds)}"
+        #     f"  |  Train subjects: {train_subjects}"
+        #     f"  |  Val subjects (se unirán a train): {val_subjects}"
+        #     f"  |  Test subjects: {test_subjects}"
+        # )
+        # print(f"{'-' * 60}")
 
         # Unir train + val para entrenamiento
         train_subjects_full = list(train_subjects) + list(val_subjects)
