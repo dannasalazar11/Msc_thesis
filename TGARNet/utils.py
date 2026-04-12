@@ -138,6 +138,23 @@ class DynamicSchedule(tf.keras.callbacks.Callback):
 
         # print(f"[Epoch {epoch + 1}] LR={float(new_lr):.6f} | lambda={self.lambda_val:.3f}")
 
+from copy import deepcopy
+from collections import defaultdict
+import numpy as np
+import random
+import tensorflow as tf
+
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.optimizers import Adam
+
+from sklearn.metrics import (
+    accuracy_score,
+    recall_score,
+    precision_score,
+    cohen_kappa_score,
+    roc_auc_score,
+)
+
 
 def SGKF(
     model_builder,
@@ -158,24 +175,26 @@ def SGKF(
         print(f"\n{'-' * 60}")
         print(
             f"Fold {fold + 1}/{len(folds)}"
-            f"  |  Val subjects: {val_subjects}"
+            f"  |  Train subjects: {train_subjects}"
+            f"  |  Val subjects (se unirán a train): {val_subjects}"
             f"  |  Test subjects: {test_subjects}"
         )
         print(f"{'-' * 60}")
 
-        train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects]
-        val_idx = [i for i, sbj in enumerate(sbjs) if sbj in val_subjects]
+        # Unir train + val para entrenamiento
+        train_subjects_full = list(train_subjects) + list(val_subjects)
+
+        train_idx = [i for i, sbj in enumerate(sbjs) if sbj in train_subjects_full]
         test_idx = [i for i, sbj in enumerate(sbjs) if sbj in test_subjects]
 
-        X_train, X_val, X_test = X[train_idx], X[val_idx], X[test_idx]
-        y_train, y_val, y_test = y[train_idx], y[val_idx], y[test_idx]
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
         sbjs_test = [sbjs[i] for i in test_idx]
 
         print(
-            f"\nFold n�mero {fold + 1}:"
-            f"\nDatos de train: {X_train.shape},"
-            f"\nDatos de valid: {X_val.shape} y sujetos valid {val_subjects},"
-            f"\nDatos de test: {X_test.shape} y sujetos test {test_subjects}"
+            f"\nFold número {fold + 1}:"
+            f"\nDatos de train (train + val): {X_train.shape}, sujetos train {train_subjects_full},"
+            f"\nDatos de test: {X_test.shape}, sujetos test {test_subjects}"
         )
 
         tf.keras.backend.clear_session()
@@ -193,21 +212,28 @@ def SGKF(
         model.compile(**compile_args_local)
 
         num_kernels = model_args["num_kernels"]
+
+        # Callbacks monitoreando pérdida de entrenamiento
+        # early_stopping = EarlyStopping(
+        #     monitor="loss",
+        #     patience=25,
+        #     min_delta=1e-4,
+        #     restore_best_weights=True,
+        #     verbose=1,
+        # )
+
+        # reduce_lr = ReduceLROnPlateau(
+        #     monitor="loss",
+        #     factor=0.5,
+        #     patience=10,
+        #     min_lr=1e-6,
+        #     verbose=1,
+        # )
+
         dynamic_schedule = DynamicSchedule(
             total_epochs=100,
             optimizer=optimizer,
             delta=delta,
-        )
-
-                # --- Callbacks ---
-        early_stopping = EarlyStopping(
-            monitor='val_loss', patience=25, min_delta=1e-4, restore_best_weights=True, verbose=1
-        )
-        reduce_lr = ReduceLROnPlateau(
-            monitor='val_loss', factor=0.5, patience=10, min_lr=1e-6, verbose=1
-        )
-        dynamic_schedule = DynamicSchedule(
-            total_epochs=100, optimizer=Adam(learning_rate=1e-3), delta=delta
         )
 
         model.fit(
@@ -217,18 +243,11 @@ def SGKF(
                 "entropies_out": np.zeros((len(y_train), 4)),
                 "kernel_weights_out": np.zeros((len(y_train), num_kernels)),
             },
-            validation_data=(
-                X_val,
-                {
-                    "out_activation": y_val,
-                    "entropies_out": np.zeros((len(y_val), 4)),
-                    "kernel_weights_out": np.zeros((len(y_val), num_kernels)),
-                },
-            ),
             epochs=100,
             batch_size=16,
             callbacks=[
-                early_stopping, reduce_lr, # probando estos dos
+                # early_stopping, 
+                # reduce_lr, 
                 dynamic_schedule],
             verbose=0,
         )
@@ -256,6 +275,7 @@ def SGKF(
             sujeto: np.mean(correct_predictions)
             for sujeto, correct_predictions in subject_correct.items()
         }
+
         print("Accuracy promedio por sujeto en test:")
         for sujeto in test_subjects:
             subject_accuracy = subject_accuracies.get(sujeto)
