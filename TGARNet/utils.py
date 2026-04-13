@@ -191,7 +191,7 @@ def SGKF(
         sbjs_test = [sbjs[i] for i in test_idx]
 
         print(
-            f"\nFold n�mero {fold + 1}:"
+            f"\nFold número {fold + 1}:"
             f"\nDatos de train: {X_train.shape},"
             f"\nDatos de valid: {X_val.shape} y sujetos valid {val_subjects},"
             f"\nDatos de test: {X_test.shape} y sujetos test {test_subjects}"
