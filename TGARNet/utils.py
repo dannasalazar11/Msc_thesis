@@ -169,8 +169,9 @@ def SGKF(
     seed=42,
 ):
     del model_name
-    all_fold_metrics = []
 
+    all_fold_metrics = []
+    all_val_accuracies = []
     models = []
 
     for fold, (train_subjects, val_subjects, test_subjects) in enumerate(folds):
@@ -212,21 +213,20 @@ def SGKF(
         model.compile(**compile_args_local)
 
         num_kernels = model_args["num_kernels"]
+
+        # Callbacks
+        early_stopping = EarlyStopping(
+            monitor="val_loss",
+            patience=25,
+            min_delta=1e-4,
+            restore_best_weights=True,
+            verbose=1,
+        )
+
         dynamic_schedule = DynamicSchedule(
             total_epochs=100,
             optimizer=optimizer,
             delta=delta,
-        )
-
-                # --- Callbacks ---
-        early_stopping = EarlyStopping(
-            monitor='val_loss', patience=25, min_delta=1e-4, restore_best_weights=True, verbose=1
-        )
-        reduce_lr = ReduceLROnPlateau(
-            monitor='val_loss', factor=0.5, patience=10, min_lr=1e-6, verbose=1
-        )
-        dynamic_schedule = DynamicSchedule(
-            total_epochs=100, optimizer=Adam(learning_rate=1e-3), delta=delta
         )
 
         model.fit(
@@ -246,26 +246,35 @@ def SGKF(
             ),
             epochs=100,
             batch_size=16,
-            callbacks=[
-                early_stopping, reduce_lr, # probando estos dos
-                dynamic_schedule],
+            callbacks=[early_stopping, dynamic_schedule],
             verbose=0,
         )
 
+        # ===== Validación =====
+        val_preds = model.predict(X_val, verbose=0)
+        y_val_probs = val_preds["out_activation"]
+        y_val_pred = np.argmax(y_val_probs, axis=1)
+        y_val_true = np.argmax(y_val, axis=1)
+        val_acc = accuracy_score(y_val_true, y_val_pred)
+        all_val_accuracies.append(val_acc)
+
+        # ===== Test =====
         preds = model.predict(X_test, verbose=0)
         y_pred_probs = preds["out_activation"]
         y_pred = np.argmax(y_pred_probs, axis=1)
         y_true = np.argmax(y_test, axis=1)
 
         fold_metrics = {
+            "val_accuracy": val_acc,
             "accuracy": accuracy_score(y_true, y_pred),
             "recall": recall_score(y_true, y_pred, average="macro", zero_division=0),
             "precision": precision_score(y_true, y_pred, average="macro", zero_division=0),
             "kappa": cohen_kappa_score(y_true, y_pred),
             "auc": roc_auc_score(y_true, y_pred_probs[:, 1]),
         }
+
         all_fold_metrics.append(fold_metrics)
-        print(f"Fold {fold + 1} Metrics (test): {fold_metrics}")
+        print(f"Fold {fold + 1} Metrics: {fold_metrics}")
 
         subject_correct = defaultdict(list)
         for y_true_value, y_pred_value, sujeto in zip(y_true, y_pred, sbjs_test):
@@ -275,6 +284,7 @@ def SGKF(
             sujeto: np.mean(correct_predictions)
             for sujeto, correct_predictions in subject_correct.items()
         }
+
         print("Accuracy promedio por sujeto en test:")
         for sujeto in test_subjects:
             subject_accuracy = subject_accuracies.get(sujeto)
@@ -284,9 +294,16 @@ def SGKF(
         models.append(model)
 
     print("\nIndividual Fold Accuracies:")
-    accs_general = []
+    accs_test = []
     for fold_index, fold_metric in enumerate(all_fold_metrics, start=1):
-        print(f"  Fold {fold_index}: {fold_metric['accuracy']:.4f}")
-        accs_general.append(fold_metric["accuracy"])
+        print(
+            f"  Fold {fold_index}: "
+            f"val_acc={fold_metric['val_accuracy']:.4f}, "
+            f"test_acc={fold_metric['accuracy']:.4f}"
+        )
+        accs_test.append(fold_metric["accuracy"])
 
-    return np.mean(accs_general), models
+    mean_test_acc = np.mean(accs_test)
+    mean_val_acc = np.mean(all_val_accuracies)
+
+    return mean_test_acc, mean_val_acc, models
