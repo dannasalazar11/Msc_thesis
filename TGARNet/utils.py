@@ -167,6 +167,7 @@ def SGKF(
     model_name="",
     delta=10,
     seed=42,
+    epochs=100
 ):
     del model_name
 
@@ -224,7 +225,7 @@ def SGKF(
         )
 
         dynamic_schedule = DynamicSchedule(
-            total_epochs=100,
+            total_epochs=epochs,
             optimizer=optimizer,
             delta=delta,
         )
@@ -244,7 +245,7 @@ def SGKF(
                     "kernel_weights_out": np.zeros((len(y_val), num_kernels)),
                 },
             ),
-            epochs=100,
+            epochs=epochs,
             batch_size=16,
             callbacks=[early_stopping, dynamic_schedule],
             verbose=0,
