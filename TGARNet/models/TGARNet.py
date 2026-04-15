@@ -213,29 +213,19 @@ from collections import defaultdict
 
 # --- 1. Clase de Atención Inspeccionable (hereda de la original de Keras) ---
 class InspectableMultiHeadAttention(tf_layers.MultiHeadAttention):
-    """
-    Extiende la MultiHeadAttention original de Keras para añadir
-    un método de inspección de pesos de proyección.
-    """
     def get_projection_weights(self):
         if not self.built:
             raise ValueError("La capa no ha sido construida.")
-        
-        weights_dict = {
+        return {
             "query": self._query_dense.kernel.numpy(),
             "key": self._key_dense.kernel.numpy(),
             "value": self._value_dense.kernel.numpy(),
-            "output": self._output_dense.kernel.numpy()
-        }
-        return weights_dict
+            "output": self._output_dense.kernel.numpy(),
+        
 
 
 # --- 3. Nuestra nueva clase de Encoder Inspeccionable ---
 class InspectableTransformerEncoder(TransformerEncoder):
-    """
-    TransformerEncoder que permite inspeccionar pesos de proyección y
-    los últimos mapas de atención generados (C×C).
-    """
     def build(self, input_shape):
         hidden_dim = input_shape[-1]
         key_dim = int(hidden_dim // self.num_heads)
@@ -250,18 +240,21 @@ class InspectableTransformerEncoder(TransformerEncoder):
 
         self._self_attention_layer_norm = tf_layers.LayerNormalization(epsilon=1e-6)
         self._self_attention_dropout = tf_layers.Dropout(rate=self.dropout)
-        self._feedforward_intermediate_dense = tf_layers.Dense(self.intermediate_dim, activation=self.activation)
+
+        self._feedforward_intermediate_dense = tf_layers.Dense(
+            self.intermediate_dim,
+            activation=self.activation
+        )
         self._feedforward_output_dense = tf_layers.Dense(hidden_dim)
         self._feedforward_layer_norm = tf_layers.LayerNormalization(epsilon=1e-6)
         self._feedforward_dropout = tf_layers.Dropout(rate=self.dropout)
 
-        # Atributo para almacenar los últimos scores
         self._last_attention_scores = None
 
-        super().build(input_shape)
+        super(TransformerEncoder, self).build(input_shape)  # no llama al build del padre inmediato
+        self.built = True
 
     def call(self, inputs, padding_mask=None, training=False):
-        # SELF-ATTENTION
         attention_output, attention_scores = self._self_attention_layer(
             query=inputs,
             key=inputs,
@@ -271,34 +264,28 @@ class InspectableTransformerEncoder(TransformerEncoder):
             return_attention_scores=True
         )
 
-        self._last_attention_scores = attention_scores  # <-- Aquí guardamos los scores
+        self._last_attention_scores = attention_scores
 
         attention_output = self._self_attention_dropout(attention_output, training=training)
         attention_output = self._self_attention_layer_norm(inputs + attention_output)
 
-        # FEEDFORWARD
         ff_output = self._feedforward_intermediate_dense(attention_output)
         ff_output = self._feedforward_output_dense(ff_output)
         ff_output = self._feedforward_dropout(ff_output, training=training)
-        output = self._feedforward_layer_norm(attention_output + ff_output)
 
+        output = self._feedforward_layer_norm(attention_output + ff_output)
         return output
 
     def get_attention_scores(self):
-        """
-        Retorna los últimos scores de atención (forma: B × H × C × C).
-        """
         if self._last_attention_scores is None:
-            raise ValueError("No se han calculado aún los attention scores. Haz un forward pass primero.")
+            raise ValueError("No se han calculado attention scores todavía.")
         return self._last_attention_scores
 
     def get_attention_weights(self):
-        """
-        Retorna los pesos W_Q, W_K, W_V y W_O de la capa de atención.
-        """
         if not self.built:
             raise ValueError("La capa Encoder no ha sido construida.")
         return self._self_attention_layer.get_projection_weights()
+        
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, Concatenate, Layer
 
