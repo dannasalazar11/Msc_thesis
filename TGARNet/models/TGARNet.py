@@ -221,6 +221,7 @@ class InspectableMultiHeadAttention(tf_layers.MultiHeadAttention):
             "key": self._key_dense.kernel.numpy(),
             "value": self._value_dense.kernel.numpy(),
             "output": self._output_dense.kernel.numpy(),
+        }
         
 
 
