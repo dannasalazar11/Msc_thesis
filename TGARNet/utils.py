@@ -286,11 +286,11 @@ def SGKF(
             for sujeto, correct_predictions in subject_correct.items()
         }
 
-        # print("Accuracy promedio por sujeto en test:")
-        # for sujeto in test_subjects:
-        #     subject_accuracy = subject_accuracies.get(sujeto)
-        #     if subject_accuracy is not None:
-        #         print(f"  {sujeto}: {subject_accuracy:.4f}")
+        print("Accuracy promedio por sujeto en test:")
+        for sujeto in test_subjects:
+            subject_accuracy = subject_accuracies.get(sujeto)
+            if subject_accuracy is not None:
+                print(f"  {sujeto}: {subject_accuracy:.4f}")
 
         models.append(model)
 
